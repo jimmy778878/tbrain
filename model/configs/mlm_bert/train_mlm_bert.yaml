@@ -1,0 +1,22 @@
+task: "training"
+
+seed: 42
+device: "cuda:0"
+
+train_ref_text_path: "../data_preprocess/train/ref_text.json"
+dev_ref_text_path: "../data_preprocess/dev/ref_text.json"
+output_path: "result/mlm_bert"
+
+model: "bert-base-chinese"
+masking_strategy: "static"
+batch_size: 64
+shuffle: False
+max_utt: 10
+
+accum_step: 1
+epoch: 5
+lr: 0.00001
+
+resume:
+  epoch_id:
+  checkpoint_path:

@@ -1,0 +1,19 @@
+task: "scoring"
+
+seed: 42
+device: "cuda:0"
+
+dev_hyp_text_path: "../data/dev/hyps_text.json"
+test_hyp_text_path: "../data/test/hyps_text.json"
+
+dev_hyp_text_path: "../data/dev/hyps_text.json"
+test_output_template: "../data/test/hyps_text.json"
+
+output_path: "result/mlm_bert"
+
+model: "bert-base-chinese"
+batch_size: 64
+max_utt: 10
+n_best: 3
+
+checkpoint_path: "result/mlm_bert/checkpoint_-1.pth"
