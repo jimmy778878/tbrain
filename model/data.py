@@ -30,7 +30,7 @@ def collate_for_training(batch):
     
     input_ids = pad_sequence(input_ids, batch_first=True)
     attention_mask = pad_sequence(attention_mask, batch_first=True)
-    labels = pad_sequence(labels, batch_first=True)
+    labels = pad_sequence(labels, batch_first=True, padding_value=-100)
 
     return input_ids, attention_mask, labels
 
@@ -62,9 +62,9 @@ def static_masking(
     tokenizer, 
     mlm_probability: float = 0.15, 
 ):
-    cls_id = tokenizer.convert_tokens_to_ids(tokenizer.cls_token)
-    sep_id = tokenizer.convert_tokens_to_ids(tokenizer.sep_token)
-    mask_id = tokenizer.convert_tokens_to_ids(tokenizer.mask_token)
+    cls_ids = tokenizer.convert_tokens_to_ids(tokenizer.cls_token)
+    sep_ids = tokenizer.convert_tokens_to_ids(tokenizer.sep_token)
+    mask_ids = tokenizer.convert_tokens_to_ids(tokenizer.mask_token)
 
     input_ids = tokenizer.convert_tokens_to_ids(token_seq)
     input_ids = np.array(input_ids)
@@ -75,7 +75,7 @@ def static_masking(
     mask_token_pos = np.random.binomial(1, 0.8, len(input_ids))
     mask_token_pos = mask_token_pos & mlm_mask_pos
     mask_token_indices = mask_token_pos.nonzero()[0]
-    input_ids[mask_token_indices] = mask_id
+    input_ids[mask_token_indices] = mask_ids
     label[~mask_token_indices] = -100
 
     random_token_pos = np.random.binomial(1, 0.5, len(input_ids))
@@ -84,8 +84,8 @@ def static_masking(
     random_token_ids = np.random.randint(len(tokenizer), size=len(random_token_indices))
     input_ids[random_token_indices] = random_token_ids
 
-    input_ids = [cls_id] + input_ids + [sep_id]
-    label = [-100] + label + [-100]
+    input_ids = np.append(np.append([cls_ids], input_ids), [sep_ids])
+    label = np.append(np.append([-100], label), [-100])
     attention_mask = [1] * len(input_ids)
 
     return [{
@@ -99,20 +99,22 @@ def one_by_one_masking(
     token_seq: list[str],
     tokenizer,
     utt_id: str = None,
-    hyp_id: str = None
+    hyp_id: str = None,
 ):
-    cls_id = tokenizer.convert_tokens_to_ids(tokenizer.cls_token)
-    sep_id = tokenizer.convert_tokens_to_ids(tokenizer.sep_token)
-    mask_id = tokenizer.convert_tokens_to_ids(tokenizer.mask_token)
+    cls_token = tokenizer.cls_token
+    sep_token = tokenizer.sep_token
+    mask_token = tokenizer.mask_token
 
-    token_ids = [cls_id] + tokenizer.convert_tokens_to_ids(token_seq) + [sep_id]
+    token_seq = [cls_token] + token_seq + [sep_token]
 
     output = []
-    for mask_pos in range(1, len(token_ids)-1):
-        input_ids = token_ids[:mask_pos] + [mask_id] + token_ids[mask_pos+1:]
-        label = copy.copy(token_ids)
+    for mask_pos in range(1, len(token_seq)-1):
+        input_ids = tokenizer.convert_tokens_to_ids(
+            token_seq[:mask_pos] + [mask_token] + token_seq[mask_pos+1:]
+        )
+        label = tokenizer.convert_tokens_to_ids(token_seq)
         label[~mask_pos] = -100
-        attention_mask = [1] * len(token_ids)
+        attention_mask = [1] * len(token_seq)
         output.append({
             "utt_id": utt_id,
             "hyp_id": hyp_id,
@@ -120,8 +122,9 @@ def one_by_one_masking(
             "label": torch.tensor(label, dtype= torch.long),
             "attention_mask": torch.tensor(attention_mask, dtype= torch.long),
             "mask_pos": mask_pos,
-            "masked_token_id": token_ids[mask_pos]
+            "masked_token_id": label[mask_pos]
         })
+
     return output
 
 
@@ -140,7 +143,7 @@ def get_dataloader_for_mlm_bert(
     if task == "training":
         ref_json = json.load(open(data_path, "r", encoding="utf-8"))
         all_utt_data = []
-        for num_utt, ref_text in tqdm(enumerate(ref_json.values()), total=max_utt):
+        for num_utt, ref_text in tqdm(enumerate(ref_json.values()), total=min(max_utt, len(ref_json.values()))):
             if max_utt == num_utt:
                 break
             token_seq = tokenizer.tokenize(ref_text)
@@ -155,7 +158,7 @@ def get_dataloader_for_mlm_bert(
     elif task == "scoring":
         hyp_json = json.load(open(data_path, "r", encoding="utf-8"))
         all_hyp_data = []
-        for num_utt, (utt_id, hyps) in tqdm(enumerate(hyp_json.items()), total=max_utt):
+        for num_utt, (utt_id, hyps) in tqdm(enumerate(hyp_json.items()), total=min(max_utt, len(hyp_json.items()))):
             if max_utt > num_utt:
                 break
             for num_hyp, (hyp_id, hyp_text) in enumerate(hyps.items()):

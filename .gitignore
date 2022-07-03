@@ -5,3 +5,6 @@ data_preprocess/test/*
 data_preprocess/train.json
 data_preprocess/test.json
 data_preprocess/dev.json
+
+model/result/mlm_bert/*
+model/result/distill_bert/*

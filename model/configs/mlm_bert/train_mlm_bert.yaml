@@ -1,7 +1,7 @@
 task: "training"
 
 seed: 42
-device: "cuda:0"
+device: "cpu"
 
 train_ref_text_path: "../data_preprocess/train/ref_text.json"
 dev_ref_text_path: "../data_preprocess/dev/ref_text.json"
@@ -11,7 +11,7 @@ model: "bert-base-chinese"
 masking_strategy: "static"
 batch_size: 64
 shuffle: False
-max_utt: 10
+max_utt: 99999999
 
 accum_step: 1
 epoch: 5
