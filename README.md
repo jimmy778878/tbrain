@@ -7,38 +7,27 @@
 │  api.py
 │  README.md
 │  requirements.txt
-│  temp.txt
 │  
 ├─data_preprocess
 │  │  data_preprocess.py
-│  │  dev.json
-│  │  split.py
-│  │  test.json
-│  │  train.json
-│  │  train_all.json
-│  │  
-│  ├─dev
-│  │      
-│  ├─test
-│  │      
-│  └─train
+│  └─ split.py
 │          
 ├─inference
 │  │  inference.py
 │  │  
-│  └─configs
+│  └─ configs
 │                  
 ├─model
 │  │  data.py
 │  │  model.py
 │  │  training.py
 │  │              
-│  └─configs
+│  └─ configs
 │                  
-└─util
-        arg_parser.py
-        compute_cer.py
-        saving.py
+└─ util
+      arg_parser.py
+      compute_cer.py
+      saving.py
         
 ```
 
@@ -56,6 +45,8 @@ $ pip install -r requirement.txt
 
 * 資料前處理
 ```
+# 請先將官方提供的 train_all.json 複製到 data_preprocess 目錄下
+
 # 將路徑移動到前處理程式的目錄下
 $ cd data_preprocess
 
@@ -113,6 +104,14 @@ $ cd inference
 # python inference.py --config [config file path]
 $ python inference.py --config configs/distill_bert/score.yaml
 ```
+
+
+* 執行 api
+```
+$ python api.py
+```
+
+
 
 ## 參考論文
 [Masked Language Model Scoring](https://aclanthology.org/2020.acl-main.240) (Salazar et al., ACL 2020)
