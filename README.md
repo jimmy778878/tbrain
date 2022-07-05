@@ -121,7 +121,7 @@ $ python api.py --checkpoint_path model/result/distill_bert/checkpoint_1.pth
   * NVIDIA GeForce GTX 1080 Ti
 
 * API 運行 
-Google Cloud Platform, 8 CPU, 32 GB Memory
+  * Google Cloud Platform, 8 CPU, 32 GB Memory
 
 
 ## 參考論文
