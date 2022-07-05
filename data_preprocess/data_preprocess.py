@@ -1,5 +1,6 @@
 import sys
 sys.path.append("..")
+import os
 import json
 import sys
 from tqdm import tqdm
@@ -46,4 +47,6 @@ if __name__ == "__main__":
                 output_jsons["hyps_phone"][utt_id].update({f"hyp_{hyp_id}": hyp_phone})
 
         for file_name, data in output_jsons.items():
+            if not os.path.isdir(output_root):
+                os.mkdir(output_root)
             save_json(f"{output_root}{file_name}.json", data)
