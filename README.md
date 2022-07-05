@@ -106,11 +106,21 @@ $ python inference.py --config configs/distill_bert/score.yaml
 ```
 
 
-* 執行 api
+* 執行 API 程式
 ```
 $ python api.py
 ```
 
+## 模型 training 與 inference 參數設定
+* 請參考 config file 內的註解。
+
+## 比賽期間使用的運算機器與平台
+* 模型訓練
+  * Colab GPU
+  * NVIDIA GeForce GTX 1080 Ti
+
+* API 運行 
+Google Cloud Platform, 8 CPU, 32 GB Memory
 
 
 ## 參考論文
