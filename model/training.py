@@ -3,6 +3,7 @@ sys.path.append("..")
 import json
 import logging
 import random
+from pathlib import Path
 import numpy as np
 import torch
 import torch.optim as optim
@@ -180,6 +181,9 @@ def train(config):
 if __name__ == "__main__":
     arg_parser = ArgParser()
     config = arg_parser.parse()
+
+    output_path = Path(config.output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
 
     logging.basicConfig(
         filename=f"{config.output_path}/{config.task}.log",

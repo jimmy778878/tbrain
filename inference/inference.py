@@ -6,6 +6,7 @@ import random
 import numpy as np
 import torch
 import torch.optim as optim
+from pathlib import Path
 from tqdm import tqdm
 from transformers import BertForMaskedLM
 
@@ -221,6 +222,9 @@ if __name__ == "__main__":
     arg_parser = ArgParser()
     config = arg_parser.parse()
 
+    output_path = Path(config.output_path)
+    output_path.mkdir(parents=True, exist_ok=True)
+    
     logging.basicConfig(
         filename=f"{config.output_path}/{config.task}.log",
         filemode='w',

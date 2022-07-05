@@ -108,7 +108,8 @@ $ python inference.py --config configs/distill_bert/score.yaml
 
 * 執行 API 程式
 ```
-$ python api.py
+# python api.py --checkpoint_path [distill BERT checkpoint file path]
+$ python api.py --checkpoint_path model/result/distill_bert/checkpoint_1.pth
 ```
 
 ## 模型 training 與 inference 參數設定
