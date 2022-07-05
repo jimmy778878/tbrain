@@ -1,25 +1,47 @@
+# type: "mlm_bert" or "distill_bert"
 type: "distill_bert"
+# task: "training" or "scoring"
 task: "training"
 
+# seed: random seed
 seed: 42
+# device: "cpu" or "cuda"
 device: "cuda:0"
 
+# train_hyp_text_path, train_hyp_score_path: 訓練資料集路徑
 train_hyp_text_path: "../data_preprocess/train/hyps_text.json"
 train_hyp_score_path: "../inference/result/mlm_bert/static/train_lm.json"
+# dev_hyp_text_path, dev_hyp_score_path: 開發資料集路徑
 dev_hyp_text_path: "../data_preprocess/dev/hyps_text.json"
 dev_hyp_score_path: "../inference/result/mlm_bert/static/dev_lm.json"
+# output_path: checkpoint, log file, loss record file 等檔案的輸出路徑
 output_path: "result/distill_bert"
 
+# model: hugging face 的 model name
 model: "bert-base-chinese"
+# batch size
 batch_size: 32
+# shuffle: "True" or "False"，dataloader 是否要對資料順序打亂
 shuffle: False
+# max_utt: 訓練時要使用多少個 utterence
+# 正常來說是全用，不過在程式開發時可以設小一點 (例如：10 個)以方便 debug 
 max_utt: 99999999
+# n_best: 訓練時每個 utterence 要使用多少個 hypothesis
+# 正常來說是全用，不過在程式開發時可以設小一點 (例如：2 個)以方便 debug 
 n_best: 10
 
+# accum_step: number of step for gradient accumulation
 accum_step: 2
+# epoch: number of epochs
 epoch: 5
+# lr: learning rate
 lr: 0.00001
 
+# resume training
 resume:
+  # epoch_id: 要用第幾個 epoch 的 checkpoint 繼續訓練
+  # 例如上次訓練到第三個 epoch 就中斷了，這邊就可以設定為 2
   epoch_id:
+  # checkpoint_path: 要恢復訓練的 checkpoint file 
+  # 例如上次訓練到第三個 epoch 就中斷了，這邊可以給第二個 epoch 的 checkpoint file path
   checkpoint_path:

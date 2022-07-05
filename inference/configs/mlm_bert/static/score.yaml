@@ -1,22 +1,36 @@
+# type: "mlm_bert" or "distill_bert"
 type: "mlm_bert"
+# task: "training" or "scoring"
 task: "scoring"
 
+# seed: random seed
 seed: 42
+# device: "cpu" or "cuda"
 device: "cuda:0"
 
+# hypothesis text 路徑
 train_hyp_text_path: "../data_preprocess/train/hyps_text.json"
 dev_hyp_text_path: "../data_preprocess/dev/hyps_text.json"
 test_hyp_text_path: "../data_preprocess/test/hyps_text.json"
 
+# ref (ground truth)路徑：用來和預測結果計算錯誤率
 train_ref_text_path: "../data_preprocess/train/ref_text.json"
 dev_ref_text_path: "../data_preprocess/dev/ref_text.json"
 test_ref_text_path: "../data_preprocess/test/ref_text.json"
 
+# output_path: log file, model scoring file 等檔案的輸出路徑
 output_path: "result/mlm_bert/static"
 
+# model: hugging face 的 model name
 model: "bert-base-chinese"
+# batch size
 batch_size: 100
+# max_utt: inference 時要使用多少個 utterence
+# 正常來說是全用，不過在程式開發時可以設小一點 (例如：10 個)以方便 debug 
 max_utt: 99999999
+# n_best: inference 時每個 utterence 要使用多少個 hypothesis
+# 正常來說是全用，不過在程式開發時可以設小一點 (例如：2 個)以方便 debug 
 n_best: 10
 
+# checkpoint_path: 要使用哪個 checkpoint 來進行 inference
 checkpoint_path: "../model/result/mlm_bert/static/checkpoint_5.pth"

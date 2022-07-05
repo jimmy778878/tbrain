@@ -1,23 +1,46 @@
+# type: "mlm_bert" or "distill_bert"
 type: "mlm_bert"
+# task: "training" or "scoring"
 task: "training"
 
+# seed: random seed
 seed: 42
+# device: "cpu" or "cuda"
 device: "cuda:0"
 
+# train_ref_text_path: 訓練資料集路徑
 train_ref_text_path: "../data_preprocess/train/ref_text.json"
+# dev_ref_text_path: 開發資料集路徑
 dev_ref_text_path: "../data_preprocess/dev/ref_text.json"
+# output_path: checkpoint, log file, loss record file 等檔案的輸出路徑
 output_path: "result/mlm_bert/static"
 
+# model: hugging face 的 model name
 model: "bert-base-chinese"
+# mask_strategy: "static" or "one_by_one"
+# static 是指 BERT 原始 paper 的 masking 策略
+# one_by_one 是指 
 masking_strategy: "static"
+# batch size
 batch_size: 32
+# shuffle: "True" or "False"，dataloader 是否要對資料順序打亂
 shuffle: False
+# max_utt: 訓練時要使用多少個 utterence
+# 正常來說是全用，不過在程式開發時可以設小一點 (例如：10 個)以方便 debug 
 max_utt: 9999999
 
+# accum_step: number of step for gradient accumulation
 accum_step: 2
+# epoch: number of epochs
 epoch: 10
+# lr: learning rate
 lr: 0.000001
 
+# resume training
 resume:
+  # epoch_id: 要用第幾個 epoch 的 checkpoint 繼續訓練
+  # 例如上次訓練到第三個 epoch 就中斷了，這邊就可以設定為 2
   epoch_id:
+  # checkpoint_path: 要恢復訓練的 checkpoint file 
+  # 例如上次訓練到第三個 epoch 就中斷了，這邊可以給第二個 epoch 的 checkpoint file path
   checkpoint_path:
