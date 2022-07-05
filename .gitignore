@@ -1,3 +1,5 @@
+__pycache__
+
 data_preprocess/train_all.json
 data_preprocess/train.json
 data_preprocess/test.json
