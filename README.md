@@ -37,7 +37,7 @@
 python 3.10
 * 安裝相關套件
 ``` 
-$ pip install -r requirement.txt 
+$ pip install -r requirements.txt 
 ```
 
 
