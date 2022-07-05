@@ -11,90 +11,127 @@ from transformers import BertForMaskedLM
 
 from util.saving import save_model, save_json
 from util.arg_parser import ArgParser
-from data import get_dataloader_for_mlm_bert
+from data import get_dataloader_for_mlm_bert, get_dataloader_for_distill_bert
+from model import DistillBert
+
+class run_mlm_bert_one_epoch():
+    def __call__(self, config, model, dataloader, grad_update=False):
+        if grad_update:
+            model.train()
+            optimizer = optim.AdamW(model.parameters(), lr=config.lr)
+            optimizer.zero_grad()
+        else:
+            model.eval()
+
+        epoch_loss = 0
+        for step, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
+            input_ids = batch[0].to(config.device)
+            attention_masks = batch[1].to(config.device)
+            labels = batch[2].to(config.device)
+
+            with torch.set_grad_enabled(grad_update):
+                model_output = model(
+                    input_ids=input_ids,
+                    attention_mask=attention_masks,
+                    labels=labels,
+                    return_dict=True
+                )
+
+                epoch_loss +=  model_output.loss.item()
+                loss = (model_output.loss / config.accum_step).requires_grad_()
+                loss.backward()
+                
+                if grad_update: 
+                    if ((step + 1) % config.accum_step == 0 ) or (step + 1 == len(dataloader)):
+                        optimizer.step()
+                        optimizer.zero_grad()
+
+        return epoch_loss / len(dataloader)
 
 
-def run_one_epoch(config, model, dataloader, grad_update=False):
-    if grad_update:
-        model.train()
-        optimizer = optim.AdamW(model.parameters(), lr=config.lr)
-        optimizer.zero_grad()
-    else:
-        model.eval()
+class run_distill_bert_one_epoch():
+    def __call__(self, config, model, dataloader, grad_update=False):
+        if grad_update:
+            model.train()
+            optimizer = optim.AdamW(model.parameters(), lr=config.lr)
+            optimizer.zero_grad()
+        else:
+            model.eval()
 
-    epoch_loss = 0
-    for step, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
-        input_ids = batch[0].to(config.device)
-        attention_masks = batch[1].to(config.device)
-        labels = batch[2].to(config.device)
+        mse_loss_fn = torch.nn.MSELoss(reduction="sum")
+        epoch_loss = 0
+        for step, batch in tqdm(enumerate(dataloader), total=len(dataloader)):
+            input_ids = batch[0].to(config.device)
+            attention_masks = batch[1].to(config.device)
+            labels = batch[2].to(config.device)
 
-        with torch.set_grad_enabled(grad_update):
-            model_output = model(
-                input_ids=input_ids,
-                attention_mask=attention_masks,
-                labels=labels,
-                return_dict=True
-            )
+            with torch.set_grad_enabled(grad_update):
+                model_output = model(
+                    input_ids=input_ids,
+                    attention_mask=attention_masks,
+                )
 
-            epoch_loss +=  model_output.loss.item()
-            loss = (model_output.loss / config.accum_step).requires_grad_()
-            loss.backward()
-            
-            if grad_update: 
-                if ((step + 1) % config.accum_step == 0 ) or (step + 1 == len(dataloader)):
-                    optimizer.step()
-                    optimizer.zero_grad()
+                batch_loss = mse_loss_fn(model_output, labels)
+                epoch_loss +=  batch_loss.item()
+                loss = (batch_loss / config.accum_step).requires_grad_()
+                loss.backward()
+                
+                if grad_update: 
+                    if ((step + 1) % config.accum_step == 0 ) or (step + 1 == len(dataloader)):
+                        optimizer.step()
+                        optimizer.zero_grad()
 
-    return epoch_loss / len(dataloader)
-    
-
-def run_score(config, model, dataloader, output_template):
-    model.eval()
-    for batch in tqdm(dataloader, total=len(dataloader)):
-        utt_id = batch[0]
-        hyp_id = batch[1]
-        input_ids = batch[2].to(config.device)
-        attention_masks = batch[3].to(config.device)
-        mask_pos = batch[4]
-        masked_token_id = batch[5]
-
-        with torch.set_grad_enabled(False):
-            model_output = model(
-                input_ids=input_ids,
-                attention_mask=attention_masks,
-                return_dict=True
-            )
-        
-        token_logits = model_output.logits[range(len(model_output.logits)), mask_pos, :]
-        token_score = token_logits.log_softmax(dim=-1)
-        token_score = token_score[range(len(token_score)), masked_token_id].tolist()
-        for u_id, h_id, score in zip(utt_id, hyp_id, token_score):
-            output_template[u_id][h_id] += score
-    return output_template
+        return epoch_loss / len(dataloader)
 
 
 def train(config):
-    train_loader = get_dataloader_for_mlm_bert(
-        model=config.model,
-        task=config.task,
-        data_path=config.train_ref_text_path,
-        masking_strategy=config.masking_strategy,
-        batch_size=config.batch_size,
-        shuffle=config.shuffle,
-        max_utt=config.max_utt,
-    )
+    if config.type == "mlm_bert":
+        train_loader = get_dataloader_for_mlm_bert(
+            model=config.model,
+            task=config.task,
+            data_path=config.train_ref_text_path,
+            masking_strategy=config.masking_strategy,
+            batch_size=config.batch_size,
+            shuffle=config.shuffle,
+            max_utt=config.max_utt,
+        )
 
-    dev_loader = get_dataloader_for_mlm_bert(
-        model=config.model,
-        task=config.task,
-        data_path=config.dev_ref_text_path,
-        masking_strategy=config.masking_strategy,
-        batch_size=config.batch_size,
-        shuffle=config.shuffle,
-        max_utt=config.max_utt,
-    )
+        dev_loader = get_dataloader_for_mlm_bert(
+            model=config.model,
+            task=config.task,
+            data_path=config.dev_ref_text_path,
+            masking_strategy=config.masking_strategy,
+            batch_size=config.batch_size,
+            shuffle=config.shuffle,
+            max_utt=config.max_utt,
+        )
+        model = BertForMaskedLM.from_pretrained(config.model)
+        run_one_epoch = run_mlm_bert_one_epoch()
 
-    model = BertForMaskedLM.from_pretrained(config.model)
+    elif config.type == "distill_bert":
+        train_loader = get_dataloader_for_distill_bert(
+            model=config.model,
+            task=config.task,
+            hyp_text_path=config.train_hyp_text_path,
+            batch_size=config.batch_size,
+            hyp_score_path=config.train_hyp_score_path,
+            shuffle=config.shuffle,
+            max_utt=config.max_utt,
+            n_best=config.n_best
+        )
+
+        dev_loader = get_dataloader_for_distill_bert(
+            model=config.model,
+            task=config.task,
+            hyp_text_path=config.dev_hyp_text_path,
+            batch_size=config.batch_size,
+            hyp_score_path=config.dev_hyp_score_path,
+            shuffle=config.shuffle,
+            max_utt=config.max_utt,
+            n_best=config.n_best
+        )
+        model = DistillBert(config.model)
+        run_one_epoch = run_distill_bert_one_epoch()
 
     if config.resume.epoch_id != None and config.resume.checkpoint_path != None:
         resume = True
@@ -140,56 +177,6 @@ def train(config):
         )
 
 
-def score(config):
-    dev_loader = get_dataloader_for_mlm_bert(
-        model=config.model,
-        task=config.task,
-        data_path=config.dev_hyp_text_path,
-        masking_strategy="one_by_one",
-        batch_size=config.batch_size,
-        shuffle=False,
-    )
-
-    test_loader = get_dataloader_for_mlm_bert(
-        model=config.model,
-        task=config.task,
-        data_path=config.test_hyp_text_path,
-        masking_strategy="one_by_one",
-        batch_size=config.batch_size,
-        shuffle=False,
-    )
-
-    model = BertForMaskedLM.from_pretrained(config.model)
-    checkpoint = torch.load(config.checkpoint_path)
-    model.load_state_dict(checkpoint)
-    model = model.to(config.device)
-    
-    dev_output_template = json.load(
-        open(f"{config.dev_output_template}", "r", encoding="utf-8")
-    )
-
-    test_output_template = json.load(
-        open(f"{config.test_output_template}", "r", encoding="utf-8")
-    )
-
-    dev_output = run_one_epoch(
-        config=config,
-        model=model,
-        dataloader=dev_loader,
-        output_template=dev_output_template,
-    )
-    save_json(f"{config.output_path}/dev_lm.json", dev_output)
-
-    test_output = run_score(
-        config=config,
-        model=model,
-        dataloader=test_loader,
-        output_template=test_output_template,
-    )
-    save_json(f"{config.output_path}/test_lm.json", test_output)
-    return
-
-
 if __name__ == "__main__":
     arg_parser = ArgParser()
     config = arg_parser.parse()
@@ -208,7 +195,4 @@ if __name__ == "__main__":
         np.random.seed(config.seed)
         random.seed(config.seed)
 
-    if config.task == "training":
-        train(config)
-    elif config.task == "scoring":
-        score(config)
+    train(config)

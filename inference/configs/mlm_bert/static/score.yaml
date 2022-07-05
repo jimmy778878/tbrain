@@ -1,0 +1,22 @@
+type: "mlm_bert"
+task: "scoring"
+
+seed: 42
+device: "cuda:0"
+
+train_hyp_text_path: "../data_preprocess/train/hyps_text.json"
+dev_hyp_text_path: "../data_preprocess/dev/hyps_text.json"
+test_hyp_text_path: "../data_preprocess/test/hyps_text.json"
+
+train_ref_text_path: "../data_preprocess/train/ref_text.json"
+dev_ref_text_path: "../data_preprocess/dev/ref_text.json"
+test_ref_text_path: "../data_preprocess/test/ref_text.json"
+
+output_path: "result/mlm_bert/static"
+
+model: "bert-base-chinese"
+batch_size: 100
+max_utt: 99999999
+n_best: 10
+
+checkpoint_path: "../model/result/mlm_bert/static/checkpoint_5.pth"

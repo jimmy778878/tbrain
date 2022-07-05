@@ -1,0 +1,20 @@
+type: "distill_bert"
+task: "scoring"
+
+seed: 42
+device: "cpu"
+
+dev_hyp_text_path: "../data_preprocess/dev/hyps_text.json"
+test_hyp_text_path: "../data_preprocess/test/hyps_text.json"
+
+dev_ref_text_path: "../data_preprocess/dev/ref_text.json"
+test_ref_text_path: "../data_preprocess/test/ref_text.json"
+
+output_path: "result/distill_bert"
+
+model: "bert-base-chinese"
+batch_size: 100
+max_utt: 9999999
+n_best: 10
+
+checkpoint_path: "../model/result/distill_bert/checkpoint_5.pth"

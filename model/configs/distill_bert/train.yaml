@@ -1,0 +1,25 @@
+type: "distill_bert"
+task: "training"
+
+seed: 42
+device: "cuda:0"
+
+train_hyp_text_path: "../data_preprocess/train/hyps_text.json"
+train_hyp_score_path: "../inference/result/mlm_bert/static/train_lm.json"
+dev_hyp_text_path: "../data_preprocess/dev/hyps_text.json"
+dev_hyp_score_path: "../inference/result/mlm_bert/static/dev_lm.json"
+output_path: "result/distill_bert"
+
+model: "bert-base-chinese"
+batch_size: 32
+shuffle: False
+max_utt: 99999999
+n_best: 10
+
+accum_step: 2
+epoch: 5
+lr: 0.00001
+
+resume:
+  epoch_id:
+  checkpoint_path:

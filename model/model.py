@@ -1,9 +1,9 @@
 import torch
 from transformers import BertModel
 
-class Distill_Bert(torch.nn.Module):
+class DistillBert(torch.nn.Module):
     def __init__(self, bert):
-        super(Distill_Bert, self).__init__()
+        super(DistillBert, self).__init__()
         self.bert = BertModel.from_pretrained(bert)
         self.linear = torch.nn.Linear(
             in_features=self.bert.config.hidden_size,

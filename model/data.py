@@ -2,6 +2,7 @@ import json
 import copy
 import torch
 import numpy as np
+from typing import List
 from tqdm import tqdm
 from torch.utils.data import Dataset, DataLoader
 from torch.nn.utils.rnn import pad_sequence
@@ -18,7 +19,7 @@ class MyDataset(Dataset):
         return self.dataset[idx]
 
 
-def collate_for_training(batch):
+def collate_for_mlm_bert_training(batch):
     input_ids = []
     attention_mask = []
     labels = []
@@ -35,7 +36,7 @@ def collate_for_training(batch):
     return input_ids, attention_mask, labels
 
 
-def collate_for_scoring(batch):
+def collate_for_mlm_bert_scoring(batch):
     utt_id = []
     hyp_id = []
     input_ids = []
@@ -57,8 +58,43 @@ def collate_for_scoring(batch):
     return utt_id, hyp_id, input_ids, attention_mask, mask_pos, masked_token_id
 
 
+def collate_for_distill_bert_training(batch):
+    input_ids = []
+    attention_mask = []
+    labels = []
+
+    for data in batch:
+        input_ids.append(data["input_ids"])
+        attention_mask.append(data["attention_mask"])
+        labels.append(data["label"])
+    
+    input_ids = pad_sequence(input_ids, batch_first=True)
+    attention_mask = pad_sequence(attention_mask, batch_first=True)
+    labels = torch.tensor(labels, dtype=torch.float)
+
+    return input_ids, attention_mask, labels
+
+
+def collate_for_distill_bert_scoring(batch):
+    utt_id = []
+    hyp_id = []
+    input_ids = []
+    attention_mask = []
+
+    for data in batch:
+        utt_id.append(data["utt_id"])
+        hyp_id.append(data["hyp_id"])
+        input_ids.append(data["input_ids"])
+        attention_mask.append(data["attention_mask"])
+
+    input_ids = pad_sequence(input_ids, batch_first=True)
+    attention_mask = pad_sequence(attention_mask, batch_first=True)
+
+    return utt_id, hyp_id, input_ids, attention_mask
+
+
 def static_masking(
-    token_seq: list[str], 
+    token_seq: List[str], 
     tokenizer, 
     mlm_probability: float = 0.15, 
 ):
@@ -69,14 +105,15 @@ def static_masking(
     input_ids = tokenizer.convert_tokens_to_ids(token_seq)
     input_ids = np.array(input_ids)
     label = copy.copy(input_ids)
-    
+
     mlm_mask_pos = np.random.binomial(1, mlm_probability, len(input_ids))
 
     mask_token_pos = np.random.binomial(1, 0.8, len(input_ids))
     mask_token_pos = mask_token_pos & mlm_mask_pos
     mask_token_indices = mask_token_pos.nonzero()[0]
     input_ids[mask_token_indices] = mask_ids
-    label[~mask_token_indices] = -100
+    not_mask_token_indices = (mask_token_pos == 0)
+    label[not_mask_token_indices] = -100
 
     random_token_pos = np.random.binomial(1, 0.5, len(input_ids))
     random_token_pos = random_token_pos & mlm_mask_pos & ~mask_token_pos
@@ -96,7 +133,7 @@ def static_masking(
 
 
 def one_by_one_masking(
-    token_seq: list[str],
+    token_seq: List[str],
     tokenizer,
     utt_id: str = None,
     hyp_id: str = None,
@@ -113,7 +150,8 @@ def one_by_one_masking(
             token_seq[:mask_pos] + [mask_token] + token_seq[mask_pos+1:]
         )
         label = tokenizer.convert_tokens_to_ids(token_seq)
-        label[~mask_pos] = -100
+        not_mask_token_indices = (mask_pos == 0)
+        label[not_mask_token_indices] = -100
         attention_mask = [1] * len(token_seq)
         output.append({
             "utt_id": utt_id,
@@ -153,13 +191,13 @@ def get_dataloader_for_mlm_bert(
                 one_utt_data = one_by_one_masking(token_seq, tokenizer)
             all_utt_data += one_utt_data
         dataset = MyDataset(all_utt_data)
-        dataloader = DataLoader(dataset, batch_size, shuffle, collate_fn=collate_for_training)
+        dataloader = DataLoader(dataset, batch_size, shuffle, collate_fn=collate_for_mlm_bert_training)
 
     elif task == "scoring":
         hyp_json = json.load(open(data_path, "r", encoding="utf-8"))
         all_hyp_data = []
         for num_utt, (utt_id, hyps) in tqdm(enumerate(hyp_json.items()), total=min(max_utt, len(hyp_json.items()))):
-            if max_utt > num_utt:
+            if max_utt == num_utt:
                 break
             for num_hyp, (hyp_id, hyp_text) in enumerate(hyps.items()):
                 if n_best == num_hyp:
@@ -168,6 +206,75 @@ def get_dataloader_for_mlm_bert(
                 one_hyp_data = one_by_one_masking(token_seq, tokenizer, utt_id, hyp_id)
                 all_hyp_data += one_hyp_data
         dataset = MyDataset(all_hyp_data)
-        dataloader = DataLoader(dataset, batch_size, shuffle, collate_fn=collate_for_scoring)
+        dataloader = DataLoader(dataset, batch_size, shuffle, collate_fn=collate_for_mlm_bert_scoring)
+
+    return dataloader
+
+
+def get_dataloader_for_distill_bert(
+    model: str,
+    task: str,
+    hyp_text_path: str,
+    batch_size: int,
+    hyp_score_path: str = None,
+    shuffle: bool = False,
+    max_utt: int = None,
+    n_best: int = None
+):
+    tokenizer = BertTokenizer.from_pretrained(model)
+    cls_token = tokenizer.cls_token
+    sep_token = tokenizer.sep_token
+
+    if task == "training":
+        hyp_text_json = json.load(open(hyp_text_path, "r", encoding="utf-8"))
+        hyp_score_json = json.load(open(hyp_score_path, "r", encoding="utf-8"))
+        all_utt_data = []
+        iterator = tqdm(
+            iterable=enumerate(zip(hyp_text_json.values(), hyp_score_json.values())), 
+            total=min(max_utt, len(hyp_text_json.values()))
+        )
+        for num_utt, (hyps_text, hyps_score) in iterator:
+            if max_utt == num_utt:
+                break
+            for num_hyp, (hyp_text, hyp_score) in enumerate(zip(hyps_text.values(), hyps_score.values())):
+                if n_best == num_hyp:
+                    break
+                token_seq = tokenizer.tokenize(hyp_text)
+                input_ids =  tokenizer.convert_tokens_to_ids(
+                    [cls_token] + token_seq + [sep_token]
+                )
+                all_utt_data.append({
+                    "input_ids": torch.tensor(input_ids, dtype=torch.long),
+                    "label": hyp_score,
+                    "attention_mask": torch.tensor([1] *len(input_ids), dtype=torch.long)
+                })
+        dataset = MyDataset(all_utt_data)
+        dataloader = DataLoader(dataset, batch_size, shuffle, collate_fn=collate_for_distill_bert_training)
+
+    elif task == "scoring":
+        hyp_text_json = json.load(open(hyp_text_path, "r", encoding="utf-8"))
+        all_utt_data = []
+        iterator = tqdm(
+            iterable=enumerate(hyp_text_json.items()), 
+            total=min(max_utt, len(hyp_text_json.values()))
+        )
+        for num_utt, (utt_id, hyps_text) in iterator:
+            if max_utt == num_utt:
+                break
+            for num_hyp, (hyp_id, hyp_text) in enumerate(hyps_text.items()):
+                if n_best == num_hyp:
+                    break
+                token_seq = tokenizer.tokenize(hyp_text)
+                input_ids =  tokenizer.convert_tokens_to_ids(
+                    [cls_token] + token_seq + [sep_token]
+                )
+                all_utt_data.append({
+                    "utt_id": utt_id,
+                    "hyp_id": hyp_id,
+                    "input_ids": torch.tensor(input_ids, dtype=torch.long),
+                    "attention_mask": torch.tensor([1] *len(input_ids), dtype=torch.long)
+                })
+        dataset = MyDataset(all_utt_data)
+        dataloader = DataLoader(dataset, batch_size, shuffle, collate_fn=collate_for_distill_bert_scoring)
 
     return dataloader

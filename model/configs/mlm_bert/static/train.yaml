@@ -1,21 +1,22 @@
+type: "mlm_bert"
 task: "training"
 
 seed: 42
-device: "cpu"
+device: "cuda:0"
 
 train_ref_text_path: "../data_preprocess/train/ref_text.json"
 dev_ref_text_path: "../data_preprocess/dev/ref_text.json"
-output_path: "result/mlm_bert"
+output_path: "result/mlm_bert/static"
 
 model: "bert-base-chinese"
 masking_strategy: "static"
-batch_size: 64
+batch_size: 32
 shuffle: False
-max_utt: 99999999
+max_utt: 9999999
 
-accum_step: 1
-epoch: 5
-lr: 0.00001
+accum_step: 2
+epoch: 10
+lr: 0.000001
 
 resume:
   epoch_id:
